@@ -4,8 +4,10 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV HERMES_HOME=/var/lib/hermes
 ENV PATH="${HERMES_HOME}/.hermes/bin:${PATH}"
 
-# Instala dependencias base
-RUN apt-get update && apt-get install -y \
+# Habilita repositorio Universe y instala dependencias base
+RUN apt-get update && apt-get install -y software-properties-common \
+    && add-apt-repository universe \
+    && apt-get update && apt-get install -y \
     curl \
     ca-certificates \
     git \
@@ -18,6 +20,8 @@ RUN apt-get update && apt-get install -y \
     jq \
     patch \
     gettext-base \
+    ripgrep \
+    ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 # Instala Hermes Agent (el script instala uv, Python 3.11, etc.)
