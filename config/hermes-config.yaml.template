@@ -98,8 +98,8 @@ platforms:
           deliver_extra:
             chat_id: ${ADMIN_WHATSAPP_NUMBER}
   whatsapp:
-    enabled: ${WHATSAPP_ENABLED}
+    enabled: ${WHATSAPP_ENABLED:-true}
     extra:
-      mode: ${WHATSAPP_MODE}
-      allowed_users: ${WHATSAPP_ALLOWED_USERS}
+      mode: ${WHATSAPP_MODE:-bot}
+      allowed_users: ${WHATSAPP_ALLOWED_USERS:-*}
       bridge_port: 3002
