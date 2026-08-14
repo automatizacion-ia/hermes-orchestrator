@@ -14,6 +14,12 @@ if [ -z "$ORG" ] || [ -z "$WEBHOOK_URL" ] || [ -z "$WEBHOOK_SECRET" ]; then
   exit 1
 fi
 
+TOKEN="${GITHUB_TOKEN:-}"
+if [ -z "$TOKEN" ]; then
+  echo "Error: GITHUB_TOKEN no está definido"
+  exit 1
+fi
+
 echo "Listando repositorios de $ORG..."
 repos=$(gh repo list "$ORG" --json name -q '.[].name' --limit 1000)
 
@@ -22,25 +28,29 @@ for repo in $repos; do
 
   add_hook() {
     local path="$1"
-    local events="$2"
+    local event="$2"
     local url="${WEBHOOK_URL%/}/${path}"
 
     # Comprueba si ya existe un webhook idéntico
-    existing=$(gh api "repos/$full/hooks" --jq ".[] | select(.config.url==\"$url\") | .id" 2>/dev/null || true)
+    existing=$(curl -fsS -H "Authorization: token $TOKEN" -H "Accept: application/vnd.github.v3+json" \
+      "https://api.github.com/repos/$full/hooks" 2>/dev/null | jq -r ".[] | select(.config.url==\"$url\") | .id" || true)
     if [ -n "$existing" ]; then
       echo "  [$full] webhook $path ya existe (id=$existing)"
       return
     fi
 
     echo "  [$full] creando webhook $path -> $url"
-    gh api "repos/$full/hooks" \
-      --method POST \
-      -f name=web \
-      -f config.url="$url" \
-      -f config.content_type=json \
-      -f config.secret="$WEBHOOK_SECRET" \
-      -F "events[]=$events" \
-      --silent
+    curl -fsS -X POST \
+      -H "Authorization: token $TOKEN" \
+      -H "Accept: application/vnd.github.v3+json" \
+      "https://api.github.com/repos/$full/hooks" \
+      -d "$(jq -n --arg url "$url" --arg secret "$WEBHOOK_SECRET" --arg event "$event" '
+        {
+          name: "web",
+          config: {url: $url, content_type: "json", secret: $secret},
+          events: [$event],
+          active: true
+        }')" >/dev/null
   }
 
   if [ "$TYPE" = "issue" ] || [ "$TYPE" = "both" ]; then
