@@ -35,7 +35,7 @@ Usuario (WhatsApp/Slack)  │  GitHub (issues/PRs)
 - `curl`, `git`, `gh` CLI autenticado.
 - Tokens:
   - `KIMI_API_KEY` para Kimi Code API.
-  - `GITHUB_TOKEN` con permisos `repo`, `read:org`, `workflow` (fine-grained PAT recomendado).
+  - `GITHUB_TOKEN` clásico con permisos `repo`, `admin:org_hook`, `admin:repo_hook`.
   - `GITHUB_WEBHOOK_SECRET` para validar webhooks.
 
 ## Estructura
@@ -81,12 +81,23 @@ Usuario (WhatsApp/Slack)  │  GitHub (issues/PRs)
    sudo systemctl enable --now hermes-gateway
    ```
 
+## Estado actual de la VM (mfcodev.x5servers.cloud)
+
+- Hermes Agent v0.20.1 instalado en `/var/lib/hermes`, usuario `hermes`.
+- Kimi API configurada como proveedor LLM (`kimi-for-coding`).
+- WhatsApp Baileys emparejado y corriendo en modo bot (puerto 3002).
+- Webhook de GitHub escuchando en `http://mfcodev.x5servers.cloud:8644`.
+- Webhooks configurados en repos de `automatizacion-ia` apuntando a `/webhooks/github-issue` y `/webhooks/github-pr`.
+- Flujo validado: issue de prueba generó análisis de Kimi y se entregó por WhatsApp.
+
+> ⚠️ **Nota sobre HTTPS:** actualmente el webhook usa HTTP. GitHub acepta el delivery, pero es inseguro. La solución definitiva de HTTPS debe pasar por Dokploy/Traefik o un túnel seguro.
+
 ## Despliegue en Dokploy/Docker
 
 1. Rellena `.env`.
 2. Sube el repo a Dokploy como **Docker Compose**.
-3. Expón el puerto `8644` (webhooks).
-4. Configura en GitHub los webhooks apuntando a `https://<tu-dominio>:8644/webhooks/github-issue` y `github-pr`.
+3. Expón el puerto `8644` (webhooks) y configura HTTPS/Traefik.
+4. Configura en GitHub los webhooks apuntando a `https://<tu-dominio>/webhooks/github-issue` y `github-pr`.
 
 ## Configuración de webhooks en GitHub
 
@@ -129,6 +140,8 @@ bash scripts/setup-webhooks.sh automatizacion-ia issue
 - [x] Integración Kimi API
 - [x] Gateway WhatsApp (Baileys)
 - [x] Webhooks de GitHub
+- [x] Entrega de resúmenes por WhatsApp
 - [ ] Integración Slack
 - [ ] Skill de auto-mejora continua
 - [ ] Tests end-to-end
+- [ ] HTTPS para webhooks

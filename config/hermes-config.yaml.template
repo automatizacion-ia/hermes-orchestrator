@@ -5,31 +5,31 @@ model:
   provider: custom
   default: kimi-for-coding
   base_url: https://api.kimi.com/coding/v1
-  api_key: "${KIMI_API_KEY}"
+  api_key: ${KIMI_API_KEY}
   api_mode: chat_completions
   context_length: 262144
 
 auxiliary:
   compression:
     provider: auto
-    model: ""
+    model: 
   title_generation:
     provider: auto
-    model: ""
+    model: 
   vision:
     provider: auto
-    model: ""
+    model: 
 
 terminal:
   backend: local
-  cwd: /workspace
+  cwd: /var/lib/hermes
   timeout: 180
   lifetime_seconds: 300
   home_mode: profile
 
 skills:
   external_dirs:
-    - /workspace/skills
+    - /var/lib/hermes/skills
 
 memory:
   memory_enabled: true
@@ -50,11 +50,11 @@ platforms:
     enabled: true
     extra:
       port: 8644
-      secret: "${GITHUB_WEBHOOK_SECRET}"
+      secret: ${GITHUB_WEBHOOK_SECRET}
       routes:
         github-issue:
-          events: ["issues"]
-          secret: "${GITHUB_WEBHOOK_SECRET}"
+          events: [issues]
+          secret: ${GITHUB_WEBHOOK_SECRET}
           prompt: |
             Nuevo evento de issue en GitHub:
             Repositorio: {repository.full_name}
@@ -65,14 +65,14 @@ platforms:
             Body: {issue.body}
 
             Analiza qué pide, resume las opciones de solución y los posibles impedimentos. El admin decidirá si invocamos a Jules.
-          skills: ["github-orchestrator"]
-          deliver: "whatsapp"
+          skills: [github-orchestrator]
+          deliver: whatsapp
           deliver_extra:
-            chat_id: "${ADMIN_WHATSAPP_NUMBER}"
+            chat_id: ${ADMIN_WHATSAPP_NUMBER}
 
         github-pr:
-          events: ["pull_request"]
-          secret: "${GITHUB_WEBHOOK_SECRET}"
+          events: [pull_request]
+          secret: ${GITHUB_WEBHOOK_SECRET}
           prompt: |
             Nuevo evento de pull request en GitHub:
             Repositorio: {repository.full_name}
@@ -83,7 +83,11 @@ platforms:
             Body: {pull_request.body}
 
             Analiza qué propone el PR, resumen de cambios, riesgos y recomendación. El admin decidirá si invocamos a Jules.
-          skills: ["github-orchestrator"]
-          deliver: "whatsapp"
+          skills: [github-orchestrator]
+          deliver: whatsapp
           deliver_extra:
-            chat_id: "${ADMIN_WHATSAPP_NUMBER}"
+            chat_id: ${ADMIN_WHATSAPP_NUMBER}
+
+  whatsapp:
+    extra:
+      bridge_port: 3002
