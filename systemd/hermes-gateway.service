@@ -1,0 +1,20 @@
+[Unit]
+Description=Hermes Orchestrator Gateway
+After=network.target
+
+[Service]
+Type=simple
+User=hermes
+Group=hermes
+WorkingDirectory=/var/lib/hermes
+Environment=HERMES_HOME=/var/lib/hermes
+EnvironmentFile=-/var/lib/hermes/.env
+ExecStart=/usr/local/bin/hermes gateway
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=hermes-gateway
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,21 @@
+# Secrets
+.env
+.env.local
+.env.*.local
+
+# Hermes runtime data (sessions, memory, auth)
+.hermes/
+hermes-data/
+hermes-home/
+
+# WhatsApp session credentials
+platforms/whatsapp/session/
+
+# Python / Node
+__pycache__/
+*.pyc
+node_modules/
+*.log
+
+# OS
+.DS_Store
