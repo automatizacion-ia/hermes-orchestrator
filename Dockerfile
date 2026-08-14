@@ -1,5 +1,7 @@
 FROM ubuntu:24.04
 
+# v1.0.1 - fuerza rebuild sin cache
+
 ENV DEBIAN_FRONTEND=noninteractive
 ENV HERMES_HOME=/var/lib/hermes
 ENV PATH="${HERMES_HOME}/.hermes/bin:${PATH}"
