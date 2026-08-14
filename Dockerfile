@@ -66,7 +66,7 @@ COPY scripts/whatsapp-bridge-qr.patch /tmp/whatsapp-bridge-qr.patch
 RUN export PATH="/opt/node22/bin:$PATH" \
     && cd /usr/local/lib/hermes-agent/scripts/whatsapp-bridge \
     && npm install \
-    && npm install qrcode \
+    && npm install qrcode qrcode-terminal \
     && patch -p0 -i /tmp/whatsapp-bridge-qr.patch
 
 # Crea el home de Hermes y directorio de trabajo

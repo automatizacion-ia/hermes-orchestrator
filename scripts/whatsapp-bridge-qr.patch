@@ -1,6 +1,6 @@
 --- bridge.js.original	2026-08-14 08:42:42
-+++ bridge.js	2026-08-14 08:40:55
-@@ -24,12 +24,12 @@
++++ bridge.js	2026-08-14 15:14:02
+@@ -24,12 +24,13 @@
  import { Boom } from '@hapi/boom';
  import pino from 'pino';
  import path from 'path';
@@ -12,10 +12,11 @@
  import { tmpdir } from 'os';
 -import qrcode from 'qrcode-terminal';
 +import qrcode from 'qrcode';
++import qrcodeTerminal from 'qrcode-terminal';
  import { matchesAllowedUser, parseAllowedUsers } from './allowlist.js';
  import { createOutboundIdTracker } from './outbound_ids.js';
  import { classifyOwnerMessageGate } from './owner_message_gate.js';
-@@ -125,6 +125,107 @@
+@@ -125,6 +126,107 @@
  // fires. Fail fast instead so the gateway can surface a real error and retry.
  const SEND_TIMEOUT_MS = parseInt(process.env.WHATSAPP_SEND_TIMEOUT_MS || '60000', 10);
  
@@ -123,20 +124,19 @@
  // --- Send queue: serialise all sock.sendMessage() calls across concurrent
  //     HTTP handlers so a single Baileys socket never has overlapping sends.
  //     Overlapping sends are the root cause of cross-chat contamination
-@@ -428,9 +529,9 @@
-       if (PAIR_JSON) {
+@@ -429,8 +531,9 @@
          emitPairEvent({ event: 'qr', qr });
        } else {
--        console.log('\n📱 Scan this QR code with WhatsApp on your phone:\n');
+         console.log('\n📱 Scan this QR code with WhatsApp on your phone:\n');
 -        qrcode.generate(qr, { small: true });
 -        console.log('\nWaiting for scan...\n');
-+        console.log('\n📱 Scan this QR code with WhatsApp on your phone:');
-+        console.log(`🌐 Or open http://0.0.0.0:${QR_WEB_PORT} to scan from your browser\n`);
++        qrcodeTerminal.generate(qr, { small: true });
++        console.log(`\n🌐 Or open http://0.0.0.0:${QR_WEB_PORT} to scan from your browser\n`);
 +        saveQrImage(qr).catch((err) => console.error('QR save failed:', err));
        }
      }
  
-@@ -458,6 +559,7 @@
+@@ -458,6 +561,7 @@
        }
      } else if (connection === 'open') {
        connectionState = 'connected';
@@ -144,7 +144,7 @@
        const connectedUser = sock?.user
          ? {
              id: sock.user.id || null,
-@@ -1132,6 +1234,7 @@
+@@ -1132,6 +1236,7 @@
      process.exit(1);
    });
  } else {
