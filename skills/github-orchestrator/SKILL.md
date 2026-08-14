@@ -1,7 +1,7 @@
 ---
 name: github-orchestrator
 description: Orquesta issues y PRs de GitHub usando Kimi para analizar y notificar al admin; solo invoca a Jules tras aprobación explícita.
-version: 1.1.0
+version: 1.2.0
 metadata:
   hermes:
     tags: [github, jules, kimi, orchestration, whatsapp]
@@ -62,42 +62,26 @@ Su trabajo es:
 
 ### B. Respuesta del administrador por WhatsApp
 
-1. **Lee el evento pendiente** desde `/var/lib/hermes/state/pending_github_event.json` usando la tool `terminal`:
+1. **Ejecuta el script de aprobación** usando la tool `terminal`:
    ```bash
-   cat /var/lib/hermes/state/pending_github_event.json 2>/dev/null || echo "{}"
+   /var/lib/hermes/bin/approve-github
    ```
 
-2. **Si no hay evento pendiente** (archivo vacío o no existe):
-   - Responde al admin: "No tengo ningún issue o PR pendiente de aprobación. ¿Quieres que revise algo en particular?"
-   - No hagas nada más.
+2. **Interpreta la salida del script**:
+   - Si devuelve `OK: se invocó a Jules en <URL>`:
+     - Responde al admin por WhatsApp: "✅ Ya le pedí a Jules que actúe: <URL>"
+   - Si devuelve `No hay issue/PR pendiente de aprobación.`:
+     - Responde al admin de forma normal, sin mencionar GitHub.
+   - Si devuelve un error:
+     - Informa al admin que no se pudo invocar a Jules y muestra el error.
 
-3. **Si hay evento pendiente**, evalúa la respuesta del admin:
-   - Si responde con alguna de estas palabras clave: `sí`, `si`, `apruebo`, `hazlo`, `procede`, `dale`, `ok`, `vale`, `continúa`:
-     - Para **issue**: comenta en el issue usando `gh`:
-       ```bash
-       gh issue comment <number> --repo <repo> --body "@jules please implement this fix."
-       ```
-     - Para **pull request**: comenta en el PR usando `gh`:
-       ```bash
-       gh pr comment <number> --repo <repo> --body "@jules please review and merge if appropriate."
-       ```
-     - Luego **borra el archivo pendiente**:
-       ```bash
-       rm -f /var/lib/hermes/state/pending_github_event.json
-       ```
-     - Confirma al admin por WhatsApp: "✅ Ya le pedí a Jules que actúe en <url>."
-   - Si responde `no`, `cancela`, `descarta`, `ignora`:
-     - Borra el archivo pendiente.
-     - Responde: "De acuerdo, no actuaré. Avísame si cambias de opinión."
-   - Si pide más información:
-     - No borres el archivo pendiente.
-     - Aclara o pregunta antes de invocar a Jules.
+3. **No ejecutes `gh` directamente**; usa siempre `/var/lib/hermes/bin/approve-github`.
 
 ## Pitfalls
 
 - **Nunca invoques a Jules sin aprobación explícita.** La palabra clave debe ser clara.
 - **Siempre guarda el contexto del evento** al recibir el webhook, o no podrás invocar a Jules correctamente cuando el admin responda por WhatsApp.
-- **Siempre borra el archivo pendiente** después de actuar o de que el admin cancele, para evitar reutilizar un evento viejo.
+- El script `/var/lib/hermes/bin/approve-github` se encarga de borrar el archivo pendiente después de actuar.
 - Si el issue es ambiguo o falta contexto, pide aclaración antes de actuar.
 - Si el PR toca flujos sensibles (CI/CD, secrets, permisos, deploy), menciona el riesgo en el resumen.
 - No ejecutes código tú mismo; tu rol es planificar, notificar y orquestar. La ejecución la delegas a Jules.

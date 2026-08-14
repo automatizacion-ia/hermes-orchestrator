@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PENDING_FILE=/var/lib/hermes/state/pending_github_event.json
+
+if [ ! -f "$PENDING_FILE" ]; then
+  echo "No hay issue/PR pendiente de aprobación."
+  exit 0
+fi
+
+REPO=$(jq -r '.repo' "$PENDING_FILE")
+NUMBER=$(jq -r '.number' "$PENDING_FILE")
+TYPE=$(jq -r '.type' "$PENDING_FILE")
+URL=$(jq -r '.url' "$PENDING_FILE")
+
+if [ -z "$REPO" ] || [ -z "$NUMBER" ] || [ "$REPO" = "null" ]; then
+  echo "El archivo pendiente no tiene datos válidos."
+  exit 1
+fi
+
+if [ "$TYPE" = "pull_request" ]; then
+  gh pr comment "$NUMBER" --repo "$REPO" --body "@jules please review and merge if appropriate."
+else
+  gh issue comment "$NUMBER" --repo "$REPO" --body "@jules please implement this fix."
+fi
+
+rm -f "$PENDING_FILE"
+echo "OK: se invocó a Jules en $URL"
