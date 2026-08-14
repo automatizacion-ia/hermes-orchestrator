@@ -2,6 +2,7 @@
 set -e
 
 export HERMES_HOME="${HERMES_HOME:-/var/lib/hermes}"
+export PATH="/opt/node22/bin:${PATH}"
 mkdir -p "$HERMES_HOME"
 
 # Asegura que el archivo .env esté cargado si existe
