@@ -27,16 +27,17 @@ if [ -d "$BRIDGE_SRC" ] && [ ! -f "$BRIDGE_DIR/bridge.js" ]; then
   cp -r "$BRIDGE_SRC" "$BRIDGE_DIR"
 fi
 
-# Instala dependencias del bridge si no existen
+# Instala dependencias del bridge si no existen (usa el npm de Node 22 de Hermes)
+HERMES_NPM="$HERMES_HOME/node/bin/npm"
 if [ -f "$BRIDGE_DIR/bridge.js" ] && [ ! -d "$BRIDGE_DIR/node_modules" ]; then
   echo "Instalando dependencias del bridge de WhatsApp..."
-  (cd "$BRIDGE_DIR" && npm install)
+  (cd "$BRIDGE_DIR" && "$HERMES_NPM" install)
 fi
 
 # Aplica el parche QR-web al bridge de WhatsApp si es necesario
 if [ -f "$BRIDGE_DIR/bridge.js" ] && grep -q "import qrcode from 'qrcode-terminal';" "$BRIDGE_DIR/bridge.js"; then
   echo "Aplicando parche QR-web al bridge de WhatsApp..."
-  (cd "$BRIDGE_DIR" && npm install qrcode && patch -p0 -i /workspace/scripts/whatsapp-bridge-qr.patch)
+  (cd "$BRIDGE_DIR" && "$HERMES_NPM" install qrcode && patch -p0 -i /workspace/scripts/whatsapp-bridge-qr.patch)
 fi
 
 # Inicia el bridge de WhatsApp en background si no hay credenciales o si se solicita
