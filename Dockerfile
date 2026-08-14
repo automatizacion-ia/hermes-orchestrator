@@ -63,9 +63,10 @@ COPY scripts/whatsapp-bridge-qr.patch /tmp/whatsapp-bridge-qr.patch
 
 # Instala dependencias del bridge y aplica el parche en build time
 # Así Hermes no lo sobrescribe al copiar el bridge a HERMES_HOME
-RUN cd /usr/local/lib/hermes-agent/scripts/whatsapp-bridge \
-    && /opt/node22/bin/npm install \
-    && /opt/node22/bin/npm install qrcode \
+RUN export PATH="/opt/node22/bin:$PATH" \
+    && cd /usr/local/lib/hermes-agent/scripts/whatsapp-bridge \
+    && npm install \
+    && npm install qrcode \
     && patch -p0 -i /tmp/whatsapp-bridge-qr.patch
 
 # Crea el home de Hermes y directorio de trabajo
