@@ -18,14 +18,37 @@ if [ ! -f "$HERMES_HOME/config.yaml" ] || ! grep -q "whatsapp:" "$HERMES_HOME/co
   envsubst < /workspace/config/hermes-config.yaml.template > "$HERMES_HOME/config.yaml"
 fi
 
-# Asegura que el bridge de WhatsApp tenga el parche QR-web aplicado.
-# Hermes puede regenerar el bridge al arrancar, por lo que se re-aplica en runtime.
+# Copia el bridge de WhatsApp a HERMES_HOME si no existe
+BRIDGE_SRC="/usr/local/lib/hermes-agent/scripts/whatsapp-bridge"
 BRIDGE_DIR="$HERMES_HOME/scripts/whatsapp-bridge"
-if [ -f "$BRIDGE_DIR/bridge.js" ]; then
-  if grep -q "import qrcode from 'qrcode-terminal';" "$BRIDGE_DIR/bridge.js"; then
-    echo "Aplicando parche QR-web al bridge de WhatsApp..."
-    (cd "$BRIDGE_DIR" && npm install qrcode && patch -p0 -i /workspace/scripts/whatsapp-bridge-qr.patch)
-  fi
+if [ -d "$BRIDGE_SRC" ] && [ ! -f "$BRIDGE_DIR/bridge.js" ]; then
+  echo "Copiando bridge de WhatsApp a $BRIDGE_DIR..."
+  mkdir -p "$HERMES_HOME/scripts"
+  cp -r "$BRIDGE_SRC" "$BRIDGE_DIR"
+fi
+
+# Instala dependencias del bridge si no existen
+if [ -f "$BRIDGE_DIR/bridge.js" ] && [ ! -d "$BRIDGE_DIR/node_modules" ]; then
+  echo "Instalando dependencias del bridge de WhatsApp..."
+  (cd "$BRIDGE_DIR" && npm install)
+fi
+
+# Aplica el parche QR-web al bridge de WhatsApp si es necesario
+if [ -f "$BRIDGE_DIR/bridge.js" ] && grep -q "import qrcode from 'qrcode-terminal';" "$BRIDGE_DIR/bridge.js"; then
+  echo "Aplicando parche QR-web al bridge de WhatsApp..."
+  (cd "$BRIDGE_DIR" && npm install qrcode && patch -p0 -i /workspace/scripts/whatsapp-bridge-qr.patch)
+fi
+
+# Inicia el bridge de WhatsApp en background si no hay credenciales o si se solicita
+SESSION_DIR="$HERMES_HOME/platforms/whatsapp/session"
+if [ ! -f "$SESSION_DIR/creds.json" ]; then
+  echo "No hay credenciales de WhatsApp. Iniciando bridge en modo QR-web..."
+  mkdir -p "$SESSION_DIR"
+  export WHATSAPP_QR_WEB_PORT="${WHATSAPP_QR_WEB_PORT:-8080}"
+  "$HERMES_HOME/node/bin/node" "$BRIDGE_DIR/bridge.js" \
+    --port 3002 \
+    --session "$SESSION_DIR" \
+    --mode "${WHATSAPP_MODE:-bot}" &
 fi
 
 # Ejecuta el comando recibido (por defecto: hermes gateway)
