@@ -39,7 +39,7 @@ for repo in $repos; do
       -f config.url="$url" \
       -f config.content_type=json \
       -f config.secret="$WEBHOOK_SECRET" \
-      -f events="$events" \
+      -F "events[]=$events" \
       --silent
   }
 

@@ -104,7 +104,7 @@ Puedes automatizarlo con:
 
 ```bash
 export GITHUB_TOKEN=ghp_...
-export WEBHOOK_URL=https://mfcodev.x5servers.cloud:8644/webhooks/github-issue
+export WEBHOOK_URL=https://mfcodev.x5servers.cloud:8644/webhooks
 export WEBHOOK_SECRET=...
 bash scripts/setup-webhooks.sh automatizacion-ia issue
 ```
