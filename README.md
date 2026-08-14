@@ -145,3 +145,5 @@ bash scripts/setup-webhooks.sh automatizacion-ia issue
 - [ ] Skill de auto-mejora continua
 - [ ] Tests end-to-end
 - [ ] HTTPS para webhooks
+
+Flujo Hermes → Kimi → WhatsApp → Jules API probado exitosamente.
