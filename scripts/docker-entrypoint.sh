@@ -12,8 +12,8 @@ if [ -f /workspace/.env ]; then
   set +a
 fi
 
-# Si no existe config.yaml, genera uno a partir de la plantilla
-if [ ! -f "$HERMES_HOME/config.yaml" ]; then
+# Genera config.yaml si no existe o si es obsoleo (falta whatsapp enabled)
+if [ ! -f "$HERMES_HOME/config.yaml" ] || ! grep -q "whatsapp:" "$HERMES_HOME/config.yaml" || ! grep -A2 "whatsapp:" "$HERMES_HOME/config.yaml" | grep -q "enabled:"; then
   echo "Generando $HERMES_HOME/config.yaml desde plantilla..."
   envsubst < /workspace/config/hermes-config.yaml.template > "$HERMES_HOME/config.yaml"
 fi
