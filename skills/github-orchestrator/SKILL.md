@@ -1,7 +1,7 @@
 ---
 name: github-orchestrator
-description: Orquesta issues y PRs de GitHub usando Kimi para analizar y notificar al admin; solo invoca a Jules tras aprobación explícita.
-version: 1.2.0
+description: Orquesta issues y PRs de GitHub usando Kimi para analizar y notificar al admin; solo ejecuta con Jules tras aprobación explícita.
+version: 1.3.0
 metadata:
   hermes:
     tags: [github, jules, kimi, orchestration, whatsapp]
@@ -21,7 +21,7 @@ Su trabajo es:
 1. Analizar el evento usando el modelo principal (Kimi).
 2. Notificar al administrador por WhatsApp con un resumen claro.
 3. Esperar la aprobación del administrador.
-4. Solo si el admin aprueba, comentar en el issue/PR mencionando a **@jules** para que ejecute el cambio.
+4. Solo si el admin aprueba, invocar a **Jules** mediante la API para que ejecute el cambio.
 
 ## Procedure
 
@@ -68,14 +68,14 @@ Su trabajo es:
    ```
 
 2. **Interpreta la salida del script**:
-   - Si devuelve `OK: se invocó a Jules en <URL>`:
-     - Responde al admin por WhatsApp: "✅ Ya le pedí a Jules que actúe: <URL>"
+   - Si devuelve `OK: sesión de Jules creada: <URL>`:
+     - Responde al admin por WhatsApp: "✅ Ya inicié una sesión con Jules: <URL>. Debería crear un PR en breve."
    - Si devuelve `No hay issue/PR pendiente de aprobación.`:
      - Responde al admin de forma normal, sin mencionar GitHub.
-   - Si devuelve un error:
+   - Si devuelve un error (por ejemplo, `JULES_API_KEY no está configurada`):
      - Informa al admin que no se pudo invocar a Jules y muestra el error.
 
-3. **No ejecutes `gh` directamente**; usa siempre `/var/lib/hermes/bin/approve-github`.
+3. **No llames a la API de Jules directamente**; usa siempre `/var/lib/hermes/bin/approve-github`.
 
 ## Pitfalls
 
@@ -89,6 +89,6 @@ Su trabajo es:
 ## Verification
 
 - El evento se guarda en `/var/lib/hermes/state/pending_github_event.json`.
-- El comentario de `@jules` aparece en el issue/PR correspondiente.
+- Se crea una sesión en Jules y se devuelve una URL.
 - El administrador recibe la confirmación por WhatsApp.
-- Si no hay aprobación, no se genera ningún comentario en GitHub.
+- Si no hay aprobación, no se invoca a Jules.

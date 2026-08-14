@@ -12,17 +12,47 @@ REPO=$(jq -r '.repo' "$PENDING_FILE")
 NUMBER=$(jq -r '.number' "$PENDING_FILE")
 TYPE=$(jq -r '.type' "$PENDING_FILE")
 URL=$(jq -r '.url' "$PENDING_FILE")
+TITLE=$(jq -r '.title' "$PENDING_FILE")
 
 if [ -z "$REPO" ] || [ -z "$NUMBER" ] || [ "$REPO" = "null" ]; then
   echo "El archivo pendiente no tiene datos válidos."
   exit 1
 fi
 
-if [ "$TYPE" = "pull_request" ]; then
-  gh pr comment "$NUMBER" --repo "$REPO" --body "@jules please review and merge if appropriate."
-else
-  gh issue comment "$NUMBER" --repo "$REPO" --body "@jules please implement this fix."
+if [ -z "${JULES_API_KEY:-}" ]; then
+  echo "Error: JULES_API_KEY no está configurada."
+  exit 1
 fi
 
+PROMPT="Resuelve el ${TYPE} #${NUMBER} en ${REPO}: ${TITLE}. URL: ${URL}"
+
+RESPONSE=$(curl -s -X POST "https://jules.googleapis.com/v1alpha/sessions" \
+  -H "X-Goog-Api-Key: ${JULES_API_KEY}" \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"prompt\": \"${PROMPT}\",
+    \"sourceContext\": {
+      \"source\": \"sources/github/${REPO}\",
+      \"githubRepoContext\": {
+        \"startingBranch\": \"main\"
+      },
+      \"environmentVariablesEnabled\": true
+    },
+    \"title\": \"Resolver ${TYPE} #${NUMBER}: ${TITLE}\",
+    \"requirePlanApproval\": false,
+    \"automationMode\": \"AUTO_CREATE_PR\"
+  }")
+
+# Extraer URL de la sesión si existe
+SESSION_URL=$(echo "$RESPONSE" | jq -r '.url // empty' 2>/dev/null || true)
+SESSION_NAME=$(echo "$RESPONSE" | jq -r '.name // empty' 2>/dev/null || true)
+
 rm -f "$PENDING_FILE"
-echo "OK: se invocó a Jules en $URL"
+
+if [ -n "$SESSION_URL" ]; then
+  echo "OK: sesión de Jules creada: ${SESSION_URL}"
+elif [ -n "$SESSION_NAME" ]; then
+  echo "OK: sesión de Jules creada: https://jules.google.com/${SESSION_NAME}"
+else
+  echo "Respuesta de Jules: ${RESPONSE}"
+fi
