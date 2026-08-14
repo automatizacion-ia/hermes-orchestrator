@@ -98,8 +98,8 @@ platforms:
           deliver_extra:
             chat_id: ${ADMIN_TELEGRAM_CHAT_ID}
   telegram:
-    enabled: ${TELEGRAM_ENABLED:-true}
+    enabled: ${TELEGRAM_ENABLED}
     extra:
       bot_token: ${TELEGRAM_BOT_TOKEN}
-      allowed_users: ${TELEGRAM_ALLOWED_USERS:-*}
-      home_channel: ${TELEGRAM_HOME_CHANNEL:-}
+      allowed_users: ${TELEGRAM_ALLOWED_USERS}
+      home_channel: ${TELEGRAM_HOME_CHANNEL}
