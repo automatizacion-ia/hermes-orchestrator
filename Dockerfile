@@ -32,10 +32,10 @@ ENV PATH="/root/.local/bin:${PATH}"
 # Instala Python 3.11 con uv
 RUN uv python install 3.11
 
-# Instala Node.js 22 en HERMES_HOME
+# Instala Node.js 22 fuera del volumen persistente
 RUN curl -fsSL https://nodejs.org/dist/v22.23.2/node-v22.23.2-linux-x64.tar.xz -o /tmp/node.tar.xz \
-    && mkdir -p /var/lib/hermes/node \
-    && tar -xJf /tmp/node.tar.xz -C /var/lib/hermes/node --strip-components=1 \
+    && mkdir -p /opt/node22 \
+    && tar -xJf /tmp/node.tar.xz -C /opt/node22 --strip-components=1 \
     && rm /tmp/node.tar.xz
 
 # Descarga tarball de Hermes desde el release (evita git clone lento)
