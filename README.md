@@ -49,6 +49,7 @@ Usuario (WhatsApp/Slack)  │  GitHub (issues/PRs)
 ├── config/hermes-config.yaml.template # Plantilla de configuración de Hermes
 ├── skills/github-orchestrator/        # Skill custom para orquestar GitHub
 ├── scripts/                           # Scripts de instalación y setup
+│   └── whatsapp-bridge-qr.patch       # Parche QR-web para el bridge de Hermes
 └── systemd/hermes-gateway.service     # Servicio systemd para VM
 ```
 
@@ -76,6 +77,8 @@ Usuario (WhatsApp/Slack)  │  GitHub (issues/PRs)
    sudo -u hermes HERMES_HOME=/var/lib/hermes hermes whatsapp
    # Escanea el QR con la cuenta del bot
    ```
+   Alternativamente, con `WHATSAPP_QR_WEB_PORT` configurado, abre en tu navegador:
+   `http://<ip-de-la-vm>:8080` para ver el QR como imagen con recarga automática.
 
 5. Inicia el gateway:
    ```bash
@@ -102,16 +105,19 @@ El `docker-compose.yml` ya incluye un volumen persistente (`hermes-data`) para q
    WHATSAPP_ENABLED=true
    WHATSAPP_MODE=bot
    WHATSAPP_ALLOWED_USERS=584120787255
+   WHATSAPP_QR_WEB_PORT=8080
    WEBHOOK_PORT=8644
    WEBHOOK_PUBLIC_URL=https://hermes.tudominio.com
    HERMES_HOME=/var/lib/hermes
    ```
 
-4. **Expón el puerto** `8644` en Dokploy y asigna un dominio con HTTPS.
+4. **Expón los puertos** en Dokploy y asigna dominios con HTTPS:
+   - `8644` (webhooks).
+   - `8080` (página del QR de WhatsApp; opcional pero recomendado).
 
 5. **Empareja WhatsApp** la primera vez:
-   - Ve a los logs del contenedor en vivo.
-   - Busca el QR generado por Hermes.
+   - Abre `https://qr.tudominio.com` (o el dominio que asignes al puerto `8080`).
+   - La página muestra el QR como imagen y se recarga sola cada 5 segundos.
    - Escanea el QR con la cuenta del bot.
    - La sesión se guarda en el volumen persistente; no tendrás que escanear de nuevo en redeploys.
 
@@ -126,6 +132,7 @@ El `docker-compose.yml` ya incluye un volumen persistente (`hermes-data`) para q
 - Hermes Agent v0.20.1 instalado en `/var/lib/hermes`, usuario `hermes`.
 - Kimi API configurada como proveedor LLM (`kimi-for-coding`).
 - WhatsApp Baileys emparejado y corriendo en modo bot (puerto 3002).
+- Servidor web de QR disponible en `http://mfcodev.x5servers.cloud:8080`.
 - Webhook de GitHub escuchando en `http://mfcodev.x5servers.cloud:8644`.
 - Webhooks configurados en repos de `automatizacion-ia` apuntando a `/webhooks/github-issue` y `/webhooks/github-pr`.
 - Flujo validado: issue de prueba generó análisis de Kimi, se entregó por WhatsApp, y tras aprobación se invocó a Jules creando un PR.
@@ -152,6 +159,18 @@ export WEBHOOK_URL=https://hermes.tudominio.com/webhooks
 export WEBHOOK_SECRET=...
 bash scripts/setup-webhooks.sh owner-org issue
 ```
+
+## Página web del QR de WhatsApp
+
+El bridge de WhatsApp expone una pequeña página web para escanear el QR cómodamente desde el navegador, sin depender de la consola:
+
+- URL: `http://<host>:8080` (o el dominio que configures en Dokploy).
+- La página se recarga automáticamente cada 5 segundos hasta que se escanea el QR.
+- Endpoints útiles:
+  - `GET /` — página HTML con el QR.
+  - `GET /qr.png` — imagen PNG del QR actual.
+  - `GET /status` — estado en JSON (`pending`, `connected`, `error`).
+- Se controla con la variable `WHATSAPP_QR_WEB_PORT` (`.env`). Pon `0` para deshabilitarlo.
 
 ## Uso por WhatsApp
 

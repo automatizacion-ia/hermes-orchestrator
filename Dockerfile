@@ -16,10 +16,22 @@ RUN apt-get update && apt-get install -y \
     python3-venv \
     sshpass \
     jq \
+    patch \
     && rm -rf /var/lib/apt/lists/*
 
 # Instala Hermes Agent (el script instala uv, Python 3.11, etc.)
 RUN curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash
+
+# Copia el parche del bridge de WhatsApp antes de aplicarlo
+COPY scripts/whatsapp-bridge-qr.patch /tmp/whatsapp-bridge-qr.patch
+
+# Aplica el parche QR-web al bridge de WhatsApp de Hermes e instala la librería qrcode
+RUN for BRIDGE_DIR in $(find /usr/local/lib/hermes-agent /var/lib/hermes -path "*/scripts/whatsapp-bridge" -type d 2>/dev/null); do \
+      echo "Patching WhatsApp bridge in $BRIDGE_DIR"; \
+      cd "$BRIDGE_DIR"; \
+      npm install qrcode; \
+      patch -p0 -i /tmp/whatsapp-bridge-qr.patch || true; \
+    done
 
 # Crea el home de Hermes y directorio de trabajo
 RUN mkdir -p /var/lib/hermes /workspace

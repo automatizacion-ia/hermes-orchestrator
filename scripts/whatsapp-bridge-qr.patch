@@ -1,0 +1,154 @@
+--- bridge.js.original	2026-08-14 08:42:42
++++ bridge.js	2026-08-14 08:40:55
+@@ -24,12 +24,12 @@
+ import { Boom } from '@hapi/boom';
+ import pino from 'pino';
+ import path from 'path';
+-import { mkdirSync, readFileSync, existsSync, readdirSync, unlinkSync } from 'fs';
++import { mkdirSync, readFileSync, existsSync, readdirSync, unlinkSync, writeFileSync } from 'fs';
+ import { fileURLToPath } from 'url';
+ import { randomBytes, createHash } from 'crypto';
+ import { execFileSync } from 'child_process';
+ import { tmpdir } from 'os';
+-import qrcode from 'qrcode-terminal';
++import qrcode from 'qrcode';
+ import { matchesAllowedUser, parseAllowedUsers } from './allowlist.js';
+ import { createOutboundIdTracker } from './outbound_ids.js';
+ import { classifyOwnerMessageGate } from './owner_message_gate.js';
+@@ -125,6 +125,107 @@
+ // fires. Fail fast instead so the gateway can surface a real error and retry.
+ const SEND_TIMEOUT_MS = parseInt(process.env.WHATSAPP_SEND_TIMEOUT_MS || '60000', 10);
+ 
++// --- QR web server helpers --------------------------------------------------
++const QR_WEB_PORT = parseInt(process.env.WHATSAPP_QR_WEB_PORT || '8080', 10);
++const QR_DIR = path.join(process.env.HERMES_HOME || process.env.HOME || '.', 'platforms', 'whatsapp');
++const QR_PNG_PATH = path.join(QR_DIR, 'qr.png');
++const QR_STATUS_PATH = path.join(QR_DIR, 'qr-status.json');
++
++function ensureQrDir() {
++  try {
++    if (!existsSync(QR_DIR)) mkdirSync(QR_DIR, { recursive: true });
++  } catch (err) {
++    console.error('Failed to create QR directory:', err.message);
++  }
++}
++
++function writeQrStatus(status, extra = {}) {
++  try {
++    ensureQrDir();
++    const payload = { status, updatedAt: new Date().toISOString(), ...extra };
++    writeFileSync(QR_STATUS_PATH, JSON.stringify(payload, null, 2));
++  } catch (err) {
++    console.error('Failed to write QR status:', err.message);
++  }
++}
++
++async function saveQrImage(qrText) {
++  try {
++    ensureQrDir();
++    await qrcode.toFile(QR_PNG_PATH, qrText, {
++      type: 'png',
++      width: 400,
++      margin: 2,
++      color: { dark: '#000000', light: '#ffffff' },
++    });
++    writeQrStatus('pending', { qrPath: QR_PNG_PATH });
++  } catch (err) {
++    console.error('Failed to save QR image:', err.message);
++    writeQrStatus('error', { error: err.message });
++  }
++}
++
++function clearQrImage() {
++  try {
++    if (existsSync(QR_PNG_PATH)) unlinkSync(QR_PNG_PATH);
++    writeQrStatus('connected');
++  } catch (err) {
++    console.error('Failed to clear QR image:', err.message);
++  }
++}
++
++function startQrWebServer() {
++  if (!QR_WEB_PORT || QR_WEB_PORT <= 0) return;
++  const qrApp = express();
++  qrApp.get('/', (_req, res) => {
++    const ts = Date.now();
++    res.setHeader('Content-Type', 'text/html; charset=utf-8');
++    res.end(`<!DOCTYPE html>
++<html lang="es">
++<head>
++  <meta charset="utf-8">
++  <meta name="viewport" content="width=device-width, initial-scale=1">
++  <title>WhatsApp QR - Hermes</title>
++  <meta http-equiv="refresh" content="5">
++  <style>
++    body { font-family: system-ui, -apple-system, sans-serif; text-align: center; padding: 2rem; background: #f5f5f5; }
++    .box { background: #fff; border-radius: 12px; padding: 2rem; max-width: 500px; margin: 0 auto; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
++    img { max-width: 100%; height: auto; border-radius: 8px; }
++    h1 { margin-top: 0; font-size: 1.5rem; }
++    p { color: #555; }
++  </style>
++</head>
++<body>
++  <div class="box">
++    <h1>📱 Escanea el QR con WhatsApp</h1>
++    <p>La página se actualiza automáticamente cada 5 segundos.</p>
++    <img src="/qr.png?t=${ts}" alt="WhatsApp QR">
++    <p id="status">Esperando escaneo...</p>
++  </div>
++</body>
++</html>`);
++  });
++  qrApp.get('/qr.png', (_req, res) => {
++    if (!existsSync(QR_PNG_PATH)) {
++      return res.status(404).json({ error: 'QR not generated yet' });
++    }
++    res.setHeader('Content-Type', 'image/png');
++    res.setHeader('Cache-Control', 'no-store');
++    res.sendFile(QR_PNG_PATH);
++  });
++  qrApp.get('/status', (_req, res) => {
++    res.setHeader('Content-Type', 'application/json');
++    if (existsSync(QR_STATUS_PATH)) {
++      return res.sendFile(QR_STATUS_PATH);
++    }
++    res.json({ status: 'unknown', updatedAt: new Date().toISOString() });
++  });
++  qrApp.listen(QR_WEB_PORT, '0.0.0.0', () => {
++    console.log(`🌐 QR web server listening on http://0.0.0.0:${QR_WEB_PORT}`);
++  });
++}
++
++
+ // --- Send queue: serialise all sock.sendMessage() calls across concurrent
+ //     HTTP handlers so a single Baileys socket never has overlapping sends.
+ //     Overlapping sends are the root cause of cross-chat contamination
+@@ -428,9 +529,9 @@
+       if (PAIR_JSON) {
+         emitPairEvent({ event: 'qr', qr });
+       } else {
+-        console.log('\n📱 Scan this QR code with WhatsApp on your phone:\n');
+-        qrcode.generate(qr, { small: true });
+-        console.log('\nWaiting for scan...\n');
++        console.log('\n📱 Scan this QR code with WhatsApp on your phone:');
++        console.log(`🌐 Or open http://0.0.0.0:${QR_WEB_PORT} to scan from your browser\n`);
++        saveQrImage(qr).catch((err) => console.error('QR save failed:', err));
+       }
+     }
+ 
+@@ -458,6 +559,7 @@
+       }
+     } else if (connection === 'open') {
+       connectionState = 'connected';
++      clearQrImage();
+       const connectedUser = sock?.user
+         ? {
+             id: sock.user.id || null,
+@@ -1132,6 +1234,7 @@
+     process.exit(1);
+   });
+ } else {
++  startQrWebServer();
+   app.listen(PORT, '127.0.0.1', () => {
+     console.log(`🌉 WhatsApp bridge listening on port ${PORT} (mode: ${WHATSAPP_MODE})`);
+     console.log(`📁 Session stored in: ${SESSION_DIR}`);
