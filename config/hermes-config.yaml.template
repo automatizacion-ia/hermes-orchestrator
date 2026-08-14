@@ -1,6 +1,3 @@
-# Configuración de Hermes Orchestrator
-# Copia este archivo a ${HERMES_HOME}/config.yaml y reemplaza los valores.
-
 model:
   provider: custom
   default: kimi-for-coding
@@ -8,43 +5,35 @@ model:
   api_key: ${KIMI_API_KEY}
   api_mode: chat_completions
   context_length: 262144
-
 auxiliary:
   compression:
     provider: auto
-    model: 
+    model: null
   title_generation:
     provider: auto
-    model: 
+    model: null
   vision:
     provider: auto
-    model: 
-
+    model: null
 terminal:
   backend: local
   cwd: /var/lib/hermes
   timeout: 180
   lifetime_seconds: 300
-  home_mode: profile
-
+  home_mode: real
 skills:
   external_dirs:
-    - /var/lib/hermes/skills
-
+  - /var/lib/hermes/skills
 memory:
   memory_enabled: true
   user_profile_enabled: true
-
 agent:
   max_turns: 100
   reasoning_effort: high
-
 whatsapp:
   unauthorized_dm_behavior: ignore
-
 gateway:
   max_concurrent_sessions: null
-
 platforms:
   webhook:
     enabled: true
@@ -53,41 +42,61 @@ platforms:
       secret: ${GITHUB_WEBHOOK_SECRET}
       routes:
         github-issue:
-          events: [issues]
+          events:
+          - issues
           secret: ${GITHUB_WEBHOOK_SECRET}
-          prompt: |
-            Nuevo evento de issue en GitHub:
+          prompt: 'Nuevo evento de issue en GitHub:
+
             Repositorio: {repository.full_name}
+
             Issue #{issue.number}: {issue.title}
+
             Autor: {issue.user.login}
+
             URL: {issue.html_url}
+
             Acción: {action}
+
             Body: {issue.body}
 
-            Analiza qué pide, resume las opciones de solución y los posibles impedimentos. El admin decidirá si invocamos a Jules.
-          skills: [github-orchestrator]
+
+            Analiza qué pide, resume las opciones de solución y los posibles impedimentos.
+            El admin decidirá si invocamos a Jules.
+
+            '
+          skills:
+          - github-orchestrator
           deliver: whatsapp
           deliver_extra:
             chat_id: ${ADMIN_WHATSAPP_NUMBER}
-
         github-pr:
-          events: [pull_request]
+          events:
+          - pull_request
           secret: ${GITHUB_WEBHOOK_SECRET}
-          prompt: |
-            Nuevo evento de pull request en GitHub:
+          prompt: 'Nuevo evento de pull request en GitHub:
+
             Repositorio: {repository.full_name}
+
             PR #{number}: {pull_request.title}
+
             Autor: {pull_request.user.login}
+
             URL: {pull_request.html_url}
+
             Acción: {action}
+
             Body: {pull_request.body}
 
-            Analiza qué propone el PR, resumen de cambios, riesgos y recomendación. El admin decidirá si invocamos a Jules.
-          skills: [github-orchestrator]
+
+            Analiza qué propone el PR, resumen de cambios, riesgos y recomendación.
+            El admin decidirá si invocamos a Jules.
+
+            '
+          skills:
+          - github-orchestrator
           deliver: whatsapp
           deliver_extra:
             chat_id: ${ADMIN_WHATSAPP_NUMBER}
-
   whatsapp:
     extra:
       bridge_port: 3002
