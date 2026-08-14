@@ -17,6 +17,7 @@ RUN apt-get update && apt-get install -y \
     sshpass \
     jq \
     patch \
+    gettext-base \
     && rm -rf /var/lib/apt/lists/*
 
 # Instala Hermes Agent (el script instala uv, Python 3.11, etc.)
