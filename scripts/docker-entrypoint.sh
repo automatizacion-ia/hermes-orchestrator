@@ -34,7 +34,7 @@ SESSION_DIR="$HERMES_HOME/platforms/whatsapp/session"
 if [ ! -f "$SESSION_DIR/creds.json" ]; then
   echo "No hay credenciales de WhatsApp. Iniciando bridge en modo QR-web..."
   mkdir -p "$SESSION_DIR"
-  export WHATSAPP_QR_WEB_PORT="${WHATSAPP_QR_WEB_PORT:-8080}"
+  export WHATSAPP_QR_WEB_PORT="${WHATSAPP_QR_WEB_PORT:-80}"
   /opt/node22/bin/node "$BRIDGE_DIR/bridge.js" \
     --port 3002 \
     --session "$SESSION_DIR" \
