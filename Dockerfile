@@ -58,17 +58,6 @@ RUN mkdir -p /var/lib/hermes/skills \
     && /usr/local/lib/hermes-agent/venv/bin/python /usr/local/lib/hermes-agent/tools/skills_sync.py 2>/dev/null || true \
     && ln -sf /usr/local/lib/hermes-agent/venv/bin/hermes /usr/local/bin/hermes
 
-# Copia el parche del bridge de WhatsApp
-COPY scripts/whatsapp-bridge-qr.patch /tmp/whatsapp-bridge-qr.patch
-
-# Instala dependencias del bridge y aplica el parche en build time
-# Así Hermes no lo sobrescribe al copiar el bridge a HERMES_HOME
-RUN export PATH="/opt/node22/bin:$PATH" \
-    && cd /usr/local/lib/hermes-agent/scripts/whatsapp-bridge \
-    && npm install \
-    && npm install qrcode qrcode-terminal \
-    && patch -p0 -i /tmp/whatsapp-bridge-qr.patch
-
 # Crea el home de Hermes y directorio de trabajo
 RUN mkdir -p /var/lib/hermes /workspace
 WORKDIR /workspace

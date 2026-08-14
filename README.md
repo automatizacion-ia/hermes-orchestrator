@@ -2,7 +2,7 @@
 
 Orquestador híbrido para la organización **automatizacion-ia**:
 
-- **Hermes Agent** → entry point y gateway (WhatsApp, Slack, webhooks).
+- **Hermes Agent** → entry point y gateway (Telegram, Slack, webhooks).
 - **Kimi API** → LLM de planificación y análisis.
 - **Jules (Google)** → ejecución de código en GitHub.
 
@@ -11,7 +11,7 @@ Este repositorio contiene la configuración como código, skills custom y script
 ## Arquitectura
 
 ```text
-Usuario (WhatsApp/Slack)  │  GitHub (issues/PRs)
+Usuario (Telegram/Slack)  │  GitHub (issues/PRs)
          │                         │
          ▼                         ▼
    Hermes Gateway ◄───────── Webhook adapter
@@ -23,21 +23,21 @@ Usuario (WhatsApp/Slack)  │  GitHub (issues/PRs)
    API de Jules → PR con el cambio
 ```
 
-- Hermes recibe mensajes por WhatsApp o eventos de GitHub.
-- Para issues/PRs, analiza con Kimi, notifica al admin por WhatsApp y espera aprobación.
+- Hermes recibe mensajes por Telegram o eventos de GitHub.
+- Para issues/PRs, analiza con Kimi, notifica al admin por Telegram y espera aprobación.
 - Solo si el admin aprueba, Hermes invoca a **Jules mediante su API** para que cree un PR con el cambio.
 
 ## Requisitos
 
-- VM/cloud server con **8 GB RAM recomendados** (mínimo funcional 4 GB, pero justo con gateway + Kimi + WhatsApp).
+- VM/cloud server con **4 GB RAM** (suficiente para Telegram + Kimi).
 - Ubuntu 22.04/24.04 o cualquier Linux con Docker.
-- Node.js 18+ (para el bridge de WhatsApp de Hermes).
 - `curl`, `git`, `gh` CLI autenticado.
 - Tokens:
   - `KIMI_API_KEY` para Kimi Code API.
   - `JULES_API_KEY` para invocar a Jules por API.
   - `GITHUB_TOKEN` clásico con permisos `repo`, `admin:org_hook`, `admin:repo_hook`.
   - `GITHUB_WEBHOOK_SECRET` para validar webhooks.
+  - `TELEGRAM_BOT_TOKEN` de @BotFather.
 
 ## Estructura
 
@@ -49,9 +49,29 @@ Usuario (WhatsApp/Slack)  │  GitHub (issues/PRs)
 ├── config/hermes-config.yaml.template # Plantilla de configuración de Hermes
 ├── skills/github-orchestrator/        # Skill custom para orquestar GitHub
 ├── scripts/                           # Scripts de instalación y setup
-│   └── whatsapp-bridge-qr.patch       # Parche QR-web para el bridge de Hermes
 └── systemd/hermes-gateway.service     # Servicio systemd para VM
 ```
+
+## Configuración de Telegram
+
+1. **Crea el bot:**
+   - Abre Telegram y busca **@BotFather**.
+   - Envía `/newbot`.
+   - Ponle un nombre y username.
+   - Guarda el **token** que te da.
+
+2. **Obtén tu chat ID:**
+   - Inicia una conversación con tu bot.
+   - Envía cualquier mensaje.
+   - Visita `https://api.telegram.org/bot<TOKEN>/getUpdates`.
+   - Busca `"chat":{"id":123456789` y anota ese número.
+
+3. **Configura `.env`:**
+   ```bash
+   TELEGRAM_BOT_TOKEN=123456789:ABCdefGHIjklMNOpqrSTUvwxyz
+   ADMIN_TELEGRAM_CHAT_ID=123456789
+   TELEGRAM_ALLOWED_USERS=123456789
+   ```
 
 ## Instalación rápida en VM
 
@@ -72,22 +92,14 @@ Usuario (WhatsApp/Slack)  │  GitHub (issues/PRs)
    sudo bash scripts/install-hermes-vm.sh
    ```
 
-4. Empareja WhatsApp:
-   ```bash
-   sudo -u hermes HERMES_HOME=/var/lib/hermes hermes whatsapp
-   # Escanea el QR con la cuenta del bot
-   ```
-   Alternativamente, con `WHATSAPP_QR_WEB_PORT` configurado, abre en tu navegador:
-   `http://<ip-de-la-vm>:8080` para ver el QR como imagen con recarga automática.
-
-5. Inicia el gateway:
+4. Inicia el gateway:
    ```bash
    sudo systemctl enable --now hermes-gateway
    ```
 
 ## Despliegue en Dokploy/Docker
 
-El `docker-compose.yml` ya incluye un volumen persistente (`hermes-data`) para que no se pierdan la sesión de WhatsApp, memorias ni estado de Hermes cuando el contenedor se reinicie.
+El `docker-compose.yml` ya incluye un volumen persistente (`hermes-data`) para que no se pierdan las memorias ni el estado de Hermes cuando el contenedor se reinicie.
 
 ### Pasos
 
@@ -95,49 +107,15 @@ El `docker-compose.yml` ya incluye un volumen persistente (`hermes-data`) para q
 
 2. **En Dokploy**, crea un nuevo proyecto tipo **Docker Compose** y selecciona el repo.
 
-3. **Configura las variables de entorno** en Dokploy (Environment). Copia todo el contenido de `.env.example` y rellena los valores reales:
-   ```bash
-   KIMI_API_KEY=sk-...
-   JULES_API_KEY=...
-   GITHUB_TOKEN=ghp_...
-   GITHUB_WEBHOOK_SECRET=...
-   ADMIN_WHATSAPP_NUMBER=584120787255
-   WHATSAPP_ENABLED=true
-   WHATSAPP_MODE=bot
-   WHATSAPP_ALLOWED_USERS=584120787255
-   WHATSAPP_QR_WEB_PORT=8080
-   WEBHOOK_PORT=8644
-   WEBHOOK_PUBLIC_URL=https://hermes.tudominio.com
-   HERMES_HOME=/var/lib/hermes
-   ```
+3. **Configura las variables de entorno** en Dokploy (Environment). Copia todo el contenido de `.env.example` y rellena los valores reales.
 
-4. **Expón los puertos** en Dokploy y asigna dominios con HTTPS:
-   - `8644` (webhooks).
-   - `8080` (página del QR de WhatsApp; opcional pero recomendado).
+4. **Expón el puerto** `8644` en Dokploy y asigna un dominio con HTTPS.
 
-5. **Empareja WhatsApp** la primera vez:
-   - Abre `https://qr.tudominio.com` (o el dominio que asignes al puerto `8080`).
-   - La página muestra el QR como imagen y se recarga sola cada 5 segundos.
-   - Escanea el QR con la cuenta del bot.
-   - La sesión se guarda en el volumen persistente; no tendrás que escanear de nuevo en redeploys.
-
-6. **Configura los webhooks en GitHub** apuntando a tu dominio:
+5. **Configura los webhooks en GitHub** apuntando a tu dominio:
    - Issues: `https://hermes.tudominio.com/webhooks/github-issue`
    - PRs: `https://hermes.tudominio.com/webhooks/github-pr`
 
-> ⚠️ **Importante:** el volumen `hermes-data` conserva todo lo de `/var/lib/hermes`. Sin él, perderías la sesión de WhatsApp y las memorias en cada redeploy.
-
-## Estado actual de la VM (mfcodev.x5servers.cloud)
-
-- Hermes Agent v0.20.1 instalado en `/var/lib/hermes`, usuario `hermes`.
-- Kimi API configurada como proveedor LLM (`kimi-for-coding`).
-- WhatsApp Baileys emparejado y corriendo en modo bot (puerto 3002).
-- Servidor web de QR disponible en `http://mfcodev.x5servers.cloud:8080`.
-- Webhook de GitHub escuchando en `http://mfcodev.x5servers.cloud:8644`.
-- Webhooks configurados en repos de `automatizacion-ia` apuntando a `/webhooks/github-issue` y `/webhooks/github-pr`.
-- Flujo validado: issue de prueba generó análisis de Kimi, se entregó por WhatsApp, y tras aprobación se invocó a Jules creando un PR.
-
-> ⚠️ **Nota sobre HTTPS:** actualmente el webhook de la VM usa HTTP. GitHub lo acepta, pero es inseguro. La solución definitiva de HTTPS pasa por Dokploy/Traefik.
+> ⚠️ **Importante:** el volumen `hermes-data` conserva todo lo de `/var/lib/hermes`. Sin él, perderías las memorias en cada redeploy.
 
 ## Configuración de webhooks en GitHub
 
@@ -160,41 +138,27 @@ export WEBHOOK_SECRET=...
 bash scripts/setup-webhooks.sh owner-org issue
 ```
 
-## Página web del QR de WhatsApp
+## Uso por Telegram
 
-El bridge de WhatsApp expone una pequeña página web para escanear el QR cómodamente desde el navegador, sin depender de la consola:
-
-- URL: `http://<host>:8080` (o el dominio que configures en Dokploy).
-- La página se recarga automáticamente cada 5 segundos hasta que se escanea el QR.
-- Endpoints útiles:
-  - `GET /` — página HTML con el QR.
-  - `GET /qr.png` — imagen PNG del QR actual.
-  - `GET /status` — estado en JSON (`pending`, `connected`, `error`).
-- Se controla con la variable `WHATSAPP_QR_WEB_PORT` (`.env`). Pon `0` para deshabilitarlo.
-
-## Uso por WhatsApp
-
-- Envía un mensaje al número del bot.
+- Envía un mensaje al bot de Telegram.
 - Para issues/PRs nuevos, el bot te enviará un resumen y esperará tu aprobación.
 - Responde `sí`, `apruebo`, `hazlo`, `procede` o `dale` para invocar a Jules.
 - Responde `no` para ignorar o pedir más información.
 
 ## Notas de seguridad
 
-- No compartas el directorio `~/.hermes/platforms/whatsapp/session`; contiene las credenciales de WhatsApp.
-- Usa un número de teléfono dedicado para el bot, no tu personal.
 - Mantén `.env` fuera del control de versiones.
-- Limita `WHATSAPP_ALLOWED_USERS` a números conocidos.
+- Limita `TELEGRAM_ALLOWED_USERS` a IDs conocidos.
+- No compartas el token del bot de Telegram.
 
 ## Roadmap
 
 - [x] Crear repo y estructura base
 - [x] Integración Kimi API
-- [x] Gateway WhatsApp (Baileys)
+- [x] Gateway Telegram
 - [x] Webhooks de GitHub
-- [x] Entrega de resúmenes por WhatsApp
+- [x] Entrega de resúmenes por Telegram
 - [x] Invocación de Jules por API
 - [ ] Integración Slack
 - [ ] Skill de auto-mejora continua
 - [ ] Tests end-to-end
-- [ ] HTTPS para webhooks en VM

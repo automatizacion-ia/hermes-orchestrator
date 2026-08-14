@@ -30,7 +30,7 @@ memory:
 agent:
   max_turns: 100
   reasoning_effort: high
-whatsapp:
+telegram:
   unauthorized_dm_behavior: ignore
 gateway:
   max_concurrent_sessions: null
@@ -66,9 +66,9 @@ platforms:
             '
           skills:
           - github-orchestrator
-          deliver: whatsapp
+          deliver: telegram
           deliver_extra:
-            chat_id: ${ADMIN_WHATSAPP_NUMBER}
+            chat_id: ${ADMIN_TELEGRAM_CHAT_ID}
         github-pr:
           events:
           - pull_request
@@ -94,12 +94,12 @@ platforms:
             '
           skills:
           - github-orchestrator
-          deliver: whatsapp
+          deliver: telegram
           deliver_extra:
-            chat_id: ${ADMIN_WHATSAPP_NUMBER}
-  whatsapp:
-    enabled: ${WHATSAPP_ENABLED:-true}
+            chat_id: ${ADMIN_TELEGRAM_CHAT_ID}
+  telegram:
+    enabled: ${TELEGRAM_ENABLED:-true}
     extra:
-      mode: ${WHATSAPP_MODE:-bot}
-      allowed_users: ${WHATSAPP_ALLOWED_USERS:-*}
-      bridge_port: 3002
+      bot_token: ${TELEGRAM_BOT_TOKEN}
+      allowed_users: ${TELEGRAM_ALLOWED_USERS:-*}
+      home_channel: ${TELEGRAM_HOME_CHANNEL:-}
