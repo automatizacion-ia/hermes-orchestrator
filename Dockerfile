@@ -14,6 +14,8 @@ RUN apt-get update && apt-get install -y software-properties-common \
     python3 \
     python3-pip \
     python3-venv \
+    nodejs \
+    npm \
     sshpass \
     jq \
     patch \
