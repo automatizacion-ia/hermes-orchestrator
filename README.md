@@ -20,12 +20,12 @@ Usuario (WhatsApp/Slack)  │  GitHub (issues/PRs)
    Kimi API (planning)
          │
          ▼ (tras aprobación del admin)
-   Comentario @jules en issue/PR
+   API de Jules → PR con el cambio
 ```
 
 - Hermes recibe mensajes por WhatsApp o eventos de GitHub.
 - Para issues/PRs, analiza con Kimi, notifica al admin por WhatsApp y espera aprobación.
-- Solo si el admin aprueba, Hermes comenta `@jules` para que Jules ejecute el cambio.
+- Solo si el admin aprueba, Hermes invoca a **Jules mediante su API** para que cree un PR con el cambio.
 
 ## Requisitos
 
@@ -35,6 +35,7 @@ Usuario (WhatsApp/Slack)  │  GitHub (issues/PRs)
 - `curl`, `git`, `gh` CLI autenticado.
 - Tokens:
   - `KIMI_API_KEY` para Kimi Code API.
+  - `JULES_API_KEY` para invocar a Jules por API.
   - `GITHUB_TOKEN` clásico con permisos `repo`, `admin:org_hook`, `admin:repo_hook`.
   - `GITHUB_WEBHOOK_SECRET` para validar webhooks.
 
@@ -81,6 +82,45 @@ Usuario (WhatsApp/Slack)  │  GitHub (issues/PRs)
    sudo systemctl enable --now hermes-gateway
    ```
 
+## Despliegue en Dokploy/Docker
+
+El `docker-compose.yml` ya incluye un volumen persistente (`hermes-data`) para que no se pierdan la sesión de WhatsApp, memorias ni estado de Hermes cuando el contenedor se reinicie.
+
+### Pasos
+
+1. **Fork o sube este repo** a tu cuenta de GitHub.
+
+2. **En Dokploy**, crea un nuevo proyecto tipo **Docker Compose** y selecciona el repo.
+
+3. **Configura las variables de entorno** en Dokploy (Environment). Copia todo el contenido de `.env.example` y rellena los valores reales:
+   ```bash
+   KIMI_API_KEY=sk-...
+   JULES_API_KEY=...
+   GITHUB_TOKEN=ghp_...
+   GITHUB_WEBHOOK_SECRET=...
+   ADMIN_WHATSAPP_NUMBER=584120787255
+   WHATSAPP_ENABLED=true
+   WHATSAPP_MODE=bot
+   WHATSAPP_ALLOWED_USERS=584120787255
+   WEBHOOK_PORT=8644
+   WEBHOOK_PUBLIC_URL=https://hermes.tudominio.com
+   HERMES_HOME=/var/lib/hermes
+   ```
+
+4. **Expón el puerto** `8644` en Dokploy y asigna un dominio con HTTPS.
+
+5. **Empareja WhatsApp** la primera vez:
+   - Ve a los logs del contenedor en vivo.
+   - Busca el QR generado por Hermes.
+   - Escanea el QR con la cuenta del bot.
+   - La sesión se guarda en el volumen persistente; no tendrás que escanear de nuevo en redeploys.
+
+6. **Configura los webhooks en GitHub** apuntando a tu dominio:
+   - Issues: `https://hermes.tudominio.com/webhooks/github-issue`
+   - PRs: `https://hermes.tudominio.com/webhooks/github-pr`
+
+> ⚠️ **Importante:** el volumen `hermes-data` conserva todo lo de `/var/lib/hermes`. Sin él, perderías la sesión de WhatsApp y las memorias en cada redeploy.
+
 ## Estado actual de la VM (mfcodev.x5servers.cloud)
 
 - Hermes Agent v0.20.1 instalado en `/var/lib/hermes`, usuario `hermes`.
@@ -88,25 +128,18 @@ Usuario (WhatsApp/Slack)  │  GitHub (issues/PRs)
 - WhatsApp Baileys emparejado y corriendo en modo bot (puerto 3002).
 - Webhook de GitHub escuchando en `http://mfcodev.x5servers.cloud:8644`.
 - Webhooks configurados en repos de `automatizacion-ia` apuntando a `/webhooks/github-issue` y `/webhooks/github-pr`.
-- Flujo validado: issue de prueba generó análisis de Kimi y se entregó por WhatsApp.
+- Flujo validado: issue de prueba generó análisis de Kimi, se entregó por WhatsApp, y tras aprobación se invocó a Jules creando un PR.
 
-> ⚠️ **Nota sobre HTTPS:** actualmente el webhook usa HTTP. GitHub acepta el delivery, pero es inseguro. La solución definitiva de HTTPS debe pasar por Dokploy/Traefik o un túnel seguro.
-
-## Despliegue en Dokploy/Docker
-
-1. Rellena `.env`.
-2. Sube el repo a Dokploy como **Docker Compose**.
-3. Expón el puerto `8644` (webhooks) y configura HTTPS/Traefik.
-4. Configura en GitHub los webhooks apuntando a `https://<tu-dominio>/webhooks/github-issue` y `github-pr`.
+> ⚠️ **Nota sobre HTTPS:** actualmente el webhook de la VM usa HTTP. GitHub lo acepta, pero es inseguro. La solución definitiva de HTTPS pasa por Dokploy/Traefik.
 
 ## Configuración de webhooks en GitHub
 
-Para cada repositorio de `automatizacion-ia` que quieras monitorear:
+Para cada repositorio que quieras monitorear:
 
 1. Settings → Webhooks → Add webhook.
 2. Payload URL:
-   - Issues: `https://mfcodev.x5servers.cloud:8644/webhooks/github-issue`
-   - PRs: `https://mfcodev.x5servers.cloud:8644/webhooks/github-pr`
+   - Issues: `https://hermes.tudominio.com/webhooks/github-issue`
+   - PRs: `https://hermes.tudominio.com/webhooks/github-pr`
 3. Content type: `application/json`.
 4. Secret: el valor de `GITHUB_WEBHOOK_SECRET`.
 5. Eventos: **Issues** y/o **Pull requests**.
@@ -115,16 +148,16 @@ Puedes automatizarlo con:
 
 ```bash
 export GITHUB_TOKEN=ghp_...
-export WEBHOOK_URL=https://mfcodev.x5servers.cloud:8644/webhooks
+export WEBHOOK_URL=https://hermes.tudominio.com/webhooks
 export WEBHOOK_SECRET=...
-bash scripts/setup-webhooks.sh automatizacion-ia issue
+bash scripts/setup-webhooks.sh owner-org issue
 ```
 
 ## Uso por WhatsApp
 
 - Envía un mensaje al número del bot.
 - Para issues/PRs nuevos, el bot te enviará un resumen y esperará tu aprobación.
-- Responde `sí`, `apruebo`, `hazlo`, `procede` o `dale` para que comente `@jules`.
+- Responde `sí`, `apruebo`, `hazlo`, `procede` o `dale` para invocar a Jules.
 - Responde `no` para ignorar o pedir más información.
 
 ## Notas de seguridad
@@ -141,7 +174,8 @@ bash scripts/setup-webhooks.sh automatizacion-ia issue
 - [x] Gateway WhatsApp (Baileys)
 - [x] Webhooks de GitHub
 - [x] Entrega de resúmenes por WhatsApp
+- [x] Invocación de Jules por API
 - [ ] Integración Slack
 - [ ] Skill de auto-mejora continua
 - [ ] Tests end-to-end
-- [ ] HTTPS para webhooks
+- [ ] HTTPS para webhooks en VM
